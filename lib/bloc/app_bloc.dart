@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 typedef AppBlocRandomUrlPicker = String Function(Iterable<String>);
+typedef AppBlocUrlLoader = Future<Uint8List> Function(String);
 
 extension RandomElement<T> on Iterable<T> {
   T getRandomElement() => elementAt(Random().nextInt(length));
@@ -17,6 +18,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     required Iterable<String> urls,
     Duration? waitBeforeLoading,
     AppBlocRandomUrlPicker? urlPicker,
+    AppBlocUrlLoader? urlLoader,
   }) : super(
           const AppState.empty(),
         ) {
@@ -34,8 +36,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         await Future.delayed(waitBeforeLoading);
       }
       try {
-        final bundle = NetworkAssetBundle(Uri.parse(url));
-        final data = (await bundle.load(url)).buffer.asUint8List();
+        final data = await (urlLoader ?? _loadUrl)(url);
         emit(
           AppState(
             isLoading: false,
@@ -56,4 +57,8 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   }
 
   String _pickRandomUrl(Iterable<String> urls) => urls.getRandomElement();
+
+  Future<Uint8List> _loadUrl(String url) => NetworkAssetBundle(Uri.parse(url))
+      .load(url)
+      .then((byteData) => byteData.buffer.asUint8List());
 }
