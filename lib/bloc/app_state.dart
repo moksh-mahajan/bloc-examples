@@ -1,58 +1,94 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
-import 'dart:convert';
-import 'dart:typed_data';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show immutable;
 
+import 'package:bloc_examples/auth/auth_errors.dart';
+
 @immutable
-class AppState {
+abstract class AppState {
   final bool isLoading;
-  final Uint8List? data;
-  final Object? error;
+  final AuthError? authError;
 
   const AppState({
     required this.isLoading,
-    required this.data,
-    required this.error,
+    required this.authError,
   });
 
-  const AppState.empty()
-      : isLoading = false,
-        data = null,
-        error = null;
+  User? get user {
+    if (this is AppStateLoggedIn) {
+      return (this as AppStateLoggedIn).user;
+    }
+    return null;
+  }
+
+  Iterable<Reference>? get images {
+    if (this is AppStateLoggedIn) {
+      return (this as AppStateLoggedIn).images;
+    }
+    return null;
+  }
+}
+
+@immutable
+class AppStateLoggedIn extends AppState {
+  final User user;
+  final Iterable<Reference> images;
+
+  const AppStateLoggedIn({
+    required bool isLoading,
+    AuthError? authError,
+    required this.user,
+    required this.images,
+  }) : super(
+          authError: authError,
+          isLoading: isLoading,
+        );
 
   @override
-  String toString() =>
-      'AppState(isLoading: $isLoading, data: $data, error: $error)';
-
-  @override
-  bool operator ==(covariant AppState other) {
-    return isLoading == other.isLoading &&
-        (data ?? []).isEqualTo(other.data ?? []) &&
-        error == other.error;
+  bool operator ==(other) {
+    if (other is AppStateLoggedIn) {
+      return isLoading == other.isLoading &&
+          authError == other.authError &&
+          user.uid == other.user.uid &&
+          images.length != other.images.length;
+    } else {
+      return false;
+    }
   }
 
   @override
   int get hashCode => Object.hash(
-        isLoading,
-        data,
-        error,
+        user.uid,
+        images,
       );
+
+  @override
+  String toString() => 'AppStateLoggedIn(user: $user, images: $images)';
 }
 
-extension Comparison<E> on List<E> {
-  bool isEqualTo(List<E> other) {
-    if (identical(this, other)) {
-      return true;
-    }
-    if (length != other.length) {
-      return false;
-    }
-    for (var i = 0; i < length; i++) {
-      if (this[i] != other[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
+@immutable
+class AppStateLoggedOut extends AppState {
+  const AppStateLoggedOut({
+    required bool isLoading,
+    AuthError? authError,
+  }) : super(
+          authError: authError,
+          isLoading: isLoading,
+        );
+
+  @override
+  String toString() =>
+      'AppStateLoggedOut(user: $isLoading, images: $authError)';
+}
+
+@immutable
+class AppStateIsInRegistrationView extends AppState {
+  const AppStateIsInRegistrationView({
+    required bool isLoading,
+    AuthError? authError,
+  }) : super(
+          authError: authError,
+          isLoading: isLoading,
+        );
 }
